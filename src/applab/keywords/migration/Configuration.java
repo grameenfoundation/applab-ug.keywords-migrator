@@ -23,7 +23,9 @@ public class Configuration {
     private static Configuration singletonValue;
 
     // Default path to the configuration file
-    private static final String defaultFilePath = "H:/helios git/KeywordMigration/src/conf/configuration.xml";
+    //private static final String defaultFilePath = "H:/helios git/KeywordMigration/src/conf/configuration.xml";
+    private static final String defaultFilePath = "src/conf/configuration.xml";
+
 
     // Allows a different filepath to be used for a custom config
     private String filePath;
