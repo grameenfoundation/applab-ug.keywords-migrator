@@ -1,62 +1,84 @@
 package applab.keywords.migration;
 
-/**
- * class that represents a unique Menu Item 
- * as it will be saved in Salesforce. This is one off code 
- * but I recognise that I could have merged this with the Keyword object
- *  Copyright (C) 2012 Grameen Foundation
- */
 public class MenuItem {
+    private String parentKeyword;
+    private String grandParentKeyword;
     private String menuItem;
     private String content;
-    private String menuItemPath;
+    private MenuItem parentMenuItem;
+    private String tieBreaker;
 
     public MenuItem() {
+        this.parentKeyword = "";
+        this.grandParentKeyword = "";
         this.menuItem = "";
         this.content = "";
-        this.menuItemPath = "";
+        this.parentMenuItem = null;
+        this.tieBreaker = "";
     }
     
     public MenuItem(String menuItem, String parentKeyword, String grandParentKeyword, String tieBreaker) {
-        this.menuItem = menuItem.trim().replaceAll("\\s+", " ");
-        this.menuItemPath = tieBreaker.trim().replaceAll("\\s+", " ");
+        this.menuItem = menuItem;
+        this.parentKeyword = parentKeyword;
+        this.grandParentKeyword = grandParentKeyword;
+        this.tieBreaker = tieBreaker;
     }
-
+    public void setParentKeyword(String parentKeyword) {
+        this.parentKeyword = parentKeyword;
+    }
+    public String getParentKeyword() {
+        return parentKeyword;
+    }
+    public void setGrandParentKeyword(String grandParentKeyword) {
+        this.grandParentKeyword = grandParentKeyword;
+    }
+    public String getGrandParentKeyword() {
+        return grandParentKeyword;
+    }
     public void setMenuItem(String menuItem) {
-        this.menuItem = menuItem.trim().replaceAll("\\s+", " ");
+        this.menuItem = menuItem;
     }
-
     public String getMenuItem() {
         return menuItem;
     }
-
     public void setContent(String content) {
+        if (content.length() > 251) {
+            this.content = content.substring(0,250);
+        }
+        else {
             this.content = content;
+        }
     }
-
     public String getContent() {
         return content;
     }
 
-    public String getTieBreaker() {
-        return menuItemPath;
-    }
+    public void setParentMenuItem(MenuItem parentMenuItem) {
+		this.parentMenuItem = parentMenuItem;
+	}
+	public MenuItem getParentMenuItem() {
+		return parentMenuItem;
+	}
+	public String getTieBreaker() {
+		return tieBreaker;
+	}
 
-    public void setMenuItemPath(String menuItemPath) {
-        this.menuItemPath = menuItemPath.trim().replaceAll("\\s+", " ");
-    }
+	public void setTieBreaker(String tieBreaker) {
+		this.tieBreaker = tieBreaker;
+	}
 
-    public String toString() {
+	public String toString() {
         return this.menuItem;
     }
 
     public int hashCode() {
-        return this.menuItemPath.length();
+        return this.tieBreaker.length();
     }
 
     public boolean equals(Object menuItem) {
+        //fileUtil.writeLinesToFile("output.txt", new String[]{"this :" + this.tieBreaker.trim() , "that :"+ ((MenuItem)menuItem).tieBreaker.trim()}, true);
         if (menuItem != null && menuItem instanceof MenuItem 
-                && ((MenuItem)menuItem).menuItemPath.trim().equalsIgnoreCase(this.menuItemPath.trim())
+                && ((MenuItem)menuItem).tieBreaker.trim().equalsIgnoreCase(this.tieBreaker.trim())
                 && ((MenuItem)menuItem).menuItem.trim().equalsIgnoreCase(this.menuItem.trim())) {
             return true;
         }
