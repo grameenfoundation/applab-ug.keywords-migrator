@@ -134,7 +134,7 @@ public class KeywordParser {
                     System.out.println("save result array follows");
                     printArray(saveResult);
                     for (int index = 0; index < saveResult.length; index++) {
-                        parentIdHashMap.put((MenuItem)itemList.get(index), saveResult[index].getId());
+                        parentIdHashMap.put((MenuItem)itemList.get(index + (200 * (numberOfBatches - 1))), saveResult[index].getId());
                         if (!saveResult[index].isSuccess()) {
                             com.sforce.soap.enterprise.Error[] errors = saveResult[index].getErrors();
                             printErrors(errors);
@@ -164,37 +164,13 @@ public class KeywordParser {
                 menuItem = new MenuItem();
                 menuItem.setTieBreaker(doTieBreak(tokens, level));
                 menuItem.setMenuItem(tokens[level]);
-                if (level == 0) {
-                    menuItem.setParentKeyword("");
-                    menuItem.setGrandParentKeyword("");
-                }
-                else if (level == tokens.length - 1 && level != 0 && null != keywords.get(i).getContent()) {
+                
+                if (level == tokens.length - 1 && level != 0 && null != keywords.get(i).getContent()) {
                     menuItem.setContent(keywords.get(i).getContent());
-                    menuItem.setParentKeyword(tokens[level - 1]);
-                    menuItem.setGrandParentKeyword(tokens[level-2]);
-                    menuItem.setParentMenuItem(new MenuItem(tokens[level - 1], tokens[level-2], "", doTieBreak(tokens, level-1)));
-                    if (level >= 3) {
-                        menuItem.getParentMenuItem().setGrandParentKeyword(tokens[level-3]);
-                    }
-                }
-                else if (level != 0 && level != tokens.length - 1){
-                    if (level == 1) {
-                        menuItem.setParentMenuItem(new MenuItem(tokens[level - 1], "", "", doTieBreak(tokens, level -1)));
-                    }
-                    else {
-                        menuItem.setGrandParentKeyword(tokens[level-2]);
-                        menuItem.setParentMenuItem(new MenuItem(tokens[level - 1], tokens[level-2], "", doTieBreak(tokens, level -1)));
-                    }
-                    menuItem.setParentKeyword(tokens[level - 1]);
-                    menuItem.setGrandParentKeyword("");
-                }
-                if (level == 0 && singleLevelMenuItemList.size() == 0) {
-                    singleLevelMenuItemList.add(menuItem);
                 }
                 if (!singleLevelMenuItemList.contains(menuItem)) {
                     singleLevelMenuItemList.add(menuItem);
-                }
-               
+                }           
             }
         }
         return singleLevelMenuItemList;
@@ -272,7 +248,7 @@ public class KeywordParser {
         commandText.append("category.ckwsearch = 1 ");
         commandText.append("AND ");
         commandText.append("NOT keyword.isDeleted ");
-        commandText.append("AND category.name = 'Local_Knowledge'");
+        commandText.append("AND category.name = 'Crops'");
         //commandText.append(" AND keyword.keyword LIKE 'Organic%'");
         //commandText.append(" ORDER BY category.name ");
         System.out.println(commandText.toString());
@@ -329,7 +305,7 @@ public class KeywordParser {
 
 	private HashMap<String, File> getImages() {
 		HashMap<String, File> images = new HashMap<String, File>();
-		File imagesDirectory = new File("D:\\search.images");
+		File imagesDirectory = new File("C:\\search.images");
 		File[] children = imagesDirectory.listFiles();
 		System.out.println("we have " + children.length + " images");
 		for (File file : children) {
