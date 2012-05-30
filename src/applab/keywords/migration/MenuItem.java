@@ -1,14 +1,22 @@
 package applab.keywords.migration;
 
+import java.util.Calendar;
+import java.util.Date;
+
 public class MenuItem {
     private String menuItem;
     private String content;
     private String tieBreaker;
+    private Calendar lastModifiedDate;
+    private String attribution;
+    private MenuItem parentMenuItem;
 
     public MenuItem() {
         this.menuItem = "";
         this.content = "";
         this.tieBreaker = "";
+        Calendar cal = Calendar.getInstance();
+        this.setLastModifiedDate(cal);
     }
     
     public MenuItem(String menuItem, String parentKeyword, String grandParentKeyword, String tieBreaker) {
@@ -39,6 +47,30 @@ public class MenuItem {
 		this.tieBreaker = tieBreaker;
 	}
 	
+	public Calendar getLastModifiedDate() {
+		return lastModifiedDate;
+	}
+
+	public void setLastModifiedDate(Calendar lastModifiedDate) {
+		this.lastModifiedDate = lastModifiedDate;
+	}
+
+	public String getAttribution() {
+		return attribution;
+	}
+
+	public void setAttribution(String attribution) {
+		this.attribution = attribution;
+	}
+
+	public MenuItem getParentMenuItem() {
+		return parentMenuItem;
+	}
+
+	public void setParentMenuItem(MenuItem parentMenuItem) {
+		this.parentMenuItem = parentMenuItem;
+	}
+
 	public String toString() {
         return this.menuItem;
     }

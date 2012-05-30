@@ -9,11 +9,13 @@ public class Keyword {
     private String id;
     private String label;
     private String content;
+    private String attribution;
 
-    public Keyword(String id, String label, String content) {
+    public Keyword(String id, String label, String content, String attribution) {
         this.setId(id);
         this.setLabel(label);
         this.setContent(content);
+        this.setAttribution(attribution);
     }
 
     public void setId(String id) {
@@ -40,6 +42,14 @@ public class Keyword {
 		return content;
 	}
 	
+	public String getAttribution() {
+		return attribution;
+	}
+
+	public void setAttribution(String attribution) {
+		this.attribution = attribution;
+	}
+
 	public boolean equals(Object object) {
 		if (object instanceof Keyword && ((Keyword)object).getLabel().equalsIgnoreCase(this.getLabel())) {
 			return true;

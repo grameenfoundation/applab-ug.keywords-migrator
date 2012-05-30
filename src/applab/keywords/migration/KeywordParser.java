@@ -65,11 +65,10 @@ public class KeywordParser {
                 while (keywordResultSet.next()) {
                         Keyword keyword = new Keyword(keywordResultSet.getString("keyword.id"), 
                                 keywordResultSet.getString("category.name").trim().replaceAll("\\s+", " ") + " " +(keywordResultSet.getString("keyword.keyword").trim().replaceAll("\\s+", " ")),
-                                keywordResultSet.getString("keyword.content"));
+                                keywordResultSet.getString("keyword.content"), keywordResultSet.getString("keyword.attribution"));
 
                         keywords.add(keyword);
                 }
-                //processKeywords(keywords);
                 processing(keywords);
             }
         } catch (SQLException e) {
@@ -108,14 +107,12 @@ public class KeywordParser {
                   System.out.println("map contents " + parentIdHashMap);
                 Menu_Item__c menuItem = new Menu_Item__c();
                 menuItem.setLabel__c(menuItemKey.getMenuItem());
-  
-                    System.out.println("PARENT = " + parentIdHashMap.get(menuItemKey.getParentMenuItem()));
-                    menuItem.setParent_Item__c(parentIdHashMap.get(menuItemKey.getParentMenuItem()));
-
+                menuItem.setLast_Modified_Date__c(menuItemKey.getLastModifiedDate());
+                System.out.println("PARENT = " + parentIdHashMap.get(menuItemKey.getParentMenuItem()));
+                menuItem.setParent_Item__c(parentIdHashMap.get(menuItemKey.getParentMenuItem()));
                 if (null != menuItemKey.getContent()) {
-                    //Mobile_Article x = new Mobile_Article();
-                    //create Article__c object, save it to salesforce and return its id to be used
                     menuItem.setContent__c(menuItemKey.getContent());
+                    menuItem.setAttribution__c(menuItemKey.getAttribution());
                 }
                menuItem.setMenu__c(menu);
                menuItemListToSave.add(menuItem);
@@ -155,25 +152,38 @@ public class KeywordParser {
 	}
 
 	private List<MenuItem> processLevel(List<Keyword> keywords, int level) {
-        MenuItem menuItem = null;
-        List<MenuItem> singleLevelMenuItemList = new ArrayList<MenuItem>(); 
-        for (int i = 0; i < keywords.size(); i++) {
-            String [] tokens = keywords.get(i).getLabel().trim().replaceAll("\\s+", " ").split(" ");
-            tokens = removeUnderscore(tokens);
-            if (level < tokens.length) {
-                menuItem = new MenuItem();
-                menuItem.setTieBreaker(doTieBreak(tokens, level));
-                menuItem.setMenuItem(tokens[level]);
-                
-                if (level == tokens.length - 1 && level != 0 && null != keywords.get(i).getContent()) {
-                    menuItem.setContent(keywords.get(i).getContent());
-                }
-                if (!singleLevelMenuItemList.contains(menuItem)) {
-                    singleLevelMenuItemList.add(menuItem);
-                }           
-            }
-        }
-        return singleLevelMenuItemList;
+		 MenuItem menuItem = null;
+	        List<MenuItem> singleLevelMenuItemList = new ArrayList<MenuItem>(); 
+	        for (int i = 0; i < keywords.size(); i++) {
+	            String [] tokens = keywords.get(i).getLabel().trim().replaceAll("\\s+", " ").split(" ");
+	            tokens = removeUnderscore(tokens);
+	            if (level < tokens.length) {
+	                menuItem = new MenuItem();
+	                menuItem.setTieBreaker(doTieBreak(tokens, level));
+	                menuItem.setMenuItem(tokens[level]);
+
+	                if (level == tokens.length - 1 && level != 0 && null != keywords.get(i).getContent()) {
+	                    menuItem.setContent(keywords.get(i).getContent());
+	                    menuItem.setParentMenuItem(new MenuItem(tokens[level - 1], tokens[level-2], "", doTieBreak(tokens, level-1)));
+	                    menuItem.setAttribution(keywords.get(i).getAttribution());
+	                }
+	                else if (level != 0 && level != tokens.length - 1){
+	                    if (level == 1) {
+	                        menuItem.setParentMenuItem(new MenuItem(tokens[level - 1], "", "", doTieBreak(tokens, level -1)));
+	                    }
+	                    else {
+	                        menuItem.setParentMenuItem(new MenuItem(tokens[level - 1], tokens[level-2], "", doTieBreak(tokens, level -1)));
+	                    }
+	                }
+	                if (level == 0 && singleLevelMenuItemList.size() == 0) {
+	                    singleLevelMenuItemList.add(menuItem);
+	                }
+	                if (!singleLevelMenuItemList.contains(menuItem)) {
+	                    singleLevelMenuItemList.add(menuItem);
+	                }  
+	            }
+	        }
+	        return singleLevelMenuItemList;
     }
 
     private int getNumberOfLevels(List<Keyword> keywords) {
@@ -248,8 +258,7 @@ public class KeywordParser {
         commandText.append("category.ckwsearch = 1 ");
         commandText.append("AND ");
         commandText.append("NOT keyword.isDeleted ");
-        commandText.append("AND category.name = 'Crops'");
-        //commandText.append(" AND keyword.keyword LIKE 'Organic%'");
+        commandText.append("AND category.name = 'MobileMoney_Directory'");
         //commandText.append(" ORDER BY category.name ");
         System.out.println(commandText.toString());
         return commandText.toString();

@@ -2,15 +2,15 @@
 <configuration>
     <configItem>
         <configName>databaseURL</configName>
-        <configValue>jdbc:mysql://localhost:3306/searchdb24042012</configValue>
+        <configValue>jdbc:mysql://ckwapps.applab.org:3306/ycppquiz</configValue>
     </configItem>
     <configItem>
         <configName>databasePassword</configName>
-        <configValue>123456</configValue>
+        <configValue>r3ad3r12#</configValue>
     </configItem>
     <configItem>
         <configName>databaseUsername</configName>
-        <configValue>root</configValue>
+        <configValue>reader</configValue>
     </configItem>
     <configItem>
         <configName>salesforceAddress</configName>
