@@ -10,6 +10,7 @@ public class MenuItem {
     private Calendar lastModifiedDate;
     private String attribution;
     private MenuItem parentMenuItem;
+    private boolean isActive;
 
     public MenuItem() {
         this.menuItem = "";
@@ -86,5 +87,13 @@ public class MenuItem {
             return true;
         }
         return false;
+    }
+
+    public boolean isActive() {
+        return isActive;
+    }
+
+    public void setActive(boolean isActive) {
+        this.isActive = isActive;
     }
 }

@@ -5,5 +5,9 @@
 	<classpathentry kind="lib" path="lib/jaxrpc.jar"/>
 	<classpathentry kind="lib" path="lib/axis.jar"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/Common Server"/>
+	<classpathentry kind="lib" path="/Common Server/WebContent/WEB-INF/lib/activation.jar"/>
+	<classpathentry kind="lib" path="/Common Server/WebContent/WEB-INF/lib/axis-ant.jar"/>
+	<classpathentry kind="lib" path="/Common Server/WebContent/WEB-INF/lib/mail.jar"/>
+	<classpathentry kind="lib" path="/Common Server/WebContent/WEB-INF/lib/mysql-connector-java-5.1.12-bin.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

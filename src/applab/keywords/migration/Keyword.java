@@ -1,21 +1,30 @@
 package applab.keywords.migration;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 /**
- * class that represents a Keyword row from the Keywords table.
- * in the search database
- *  Copyright (C) 2012 Grameen Foundation
+ * class that represents a Keyword row from the Keywords table. in the search database Copyright (C) 2012 Grameen
+ * Foundation
  */
 public class Keyword {
     private String id;
-    private String label;
+    private String breadcrumb;
     private String content;
+    private boolean isActive;
     private String attribution;
+    private String updatedDate;
+    private String createdDate;
+   // private Calendar.
 
-    public Keyword(String id, String label, String content, String attribution) {
+    public Keyword(String id, String breadcrumb, String content, String attribution, int isActive, String createdDate, String updatedDate) {
         this.setId(id);
-        this.setLabel(label);
+        this.setBreadcrumb(breadcrumb);
         this.setContent(content);
         this.setAttribution(attribution);
+        this.setActive(isActive);
+        this.setUpdatedDate(updatedDate);
+        this.setCreatedDate(createdDate);
     }
 
     public void setId(String id) {
@@ -26,40 +35,64 @@ public class Keyword {
         return id;
     }
 
-	public void setLabel(String label) {
-		this.label = label;
-	}
+    public void setBreadcrumb(String breadcrumb) {
+        this.breadcrumb = breadcrumb;
+    }
 
-	public String getLabel() {
-		return label;
-	}
+    public String getBreadcrumb() {
+        return breadcrumb;
+    }
 
-	public void setContent(String content) {
-		this.content = content;
-	}
+    public void setContent(String content) {
+        this.content = content;
+    }
 
-	public String getContent() {
-		return content;
-	}
-	
-	public String getAttribution() {
-		return attribution;
-	}
+    public String getContent() {
+        return content;
+    }
 
-	public void setAttribution(String attribution) {
-		this.attribution = attribution;
-	}
+    public String getAttribution() {
+        return attribution;
+    }
 
-	public boolean equals(Object object) {
-		if (object instanceof Keyword && ((Keyword)object).getLabel().equalsIgnoreCase(this.getLabel())) {
-			return true;
-		}
-		else {
-			return false;
-		}
-	}
-	
-	public int hashCode() {
-		return this.getLabel().length();
-	}
+    public void setAttribution(String attribution) {
+        this.attribution = attribution;
+    }
+
+    public boolean isActive() {
+        return isActive;
+    }
+
+    public void setActive(int isActive) {
+        this.isActive = isActive == 1 ? false : true;
+    }
+
+    public String getUpdatedDate() {
+        return updatedDate;
+    }
+
+    public void setUpdatedDate(String updatedDate) {
+        this.updatedDate = updatedDate;
+    }
+
+    public String getCreatedDate() {
+        return createdDate;
+    }
+
+    public void setCreatedDate(String createdDate) {
+        this.createdDate = createdDate;
+    }
+
+    public boolean equals(Object object) {
+        if (object instanceof Keyword && ((Keyword)object).getBreadcrumb().equalsIgnoreCase(this.getBreadcrumb())) {
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    public int hashCode() {
+        return this.getBreadcrumb().length();
+    }
 }

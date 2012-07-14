@@ -8,7 +8,11 @@ import java.io.InputStream;
 import java.rmi.RemoteException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Set;
@@ -22,189 +26,167 @@ import com.sforce.soap.enterprise.fault.InvalidSObjectFault;
 import com.sforce.soap.enterprise.fault.UnexpectedErrorFault;
 import com.sforce.soap.enterprise.sobject.Attachment;
 import com.sforce.soap.enterprise.sobject.Menu_Item__c;
+import com.sforce.soap.schemas._class.ImportBackendServerKeywords.MenuItemAdapter;
+
 //import applab.Keyword;
 
 public class KeywordParser {
 
     private String menu = "";
-    private String filePath;
+    SalesforceKeywordProxy salesforceKeywordProxy;
+    private HashMap<String, List<Keyword>> keywordsMap = new HashMap<String, List<Keyword>>();
+    
+    public void updateSalesforceKeywords(String lastUpdateDate, String menuName) throws Exception {
 
-    public KeywordParser() throws RemoteException, ServiceException {
-        
-        Configuration.init();
-        if (this.filePath != null) {
-            Configuration.setFilePath(this.filePath);
-        }
         try {
+            Configuration.init();
             Configuration.parseConfig();
-        } catch (Exception e) {
+        }
+        catch (Exception e) {
             System.out.println("Failed to parse configuration");
             e.printStackTrace();
             System.exit(-1);
         }
-        SalesforceKeywordProxy salesforceKeywordProxy = new SalesforceKeywordProxy();
-        menu = salesforceKeywordProxy.getMenu("CKW Search");
         try {
             DatabaseHelpers.createConnection(Configuration.getConfiguration("databaseURL", ""),
                     Configuration.getConfiguration("databaseUsername", ""),
                     Configuration.getConfiguration("databasePassword", "")
-            );
-        } catch (ClassNotFoundException e) {
+                    );
+        }
+        catch (ClassNotFoundException e) {
             e.printStackTrace();
             System.exit(-1);
-        } catch (SQLException e) {
+        }
+        catch (SQLException e) {
             e.printStackTrace();
             System.exit(-1);
         }
         try {
-            ResultSet keywordResultSet = DatabaseHelpers.executeSelectQuery(getKeywordsQuery());
+            ResultSet keywordResultSet = DatabaseHelpers.executeSelectQuery(getKeywordsQuery(lastUpdateDate));
             int resultSetSize = getResultSetSize(keywordResultSet);
             System.out.println(resultSetSize);
             if (resultSetSize > 0) {
-                List<Keyword> keywords = new ArrayList<Keyword>();
+                List<Keyword> updatedKeywords = new ArrayList<Keyword>();
+                salesforceKeywordProxy = new SalesforceKeywordProxy();
                 while (keywordResultSet.next()) {
-                        Keyword keyword = new Keyword(keywordResultSet.getString("keyword.id"), 
-                                keywordResultSet.getString("category.name").trim().replaceAll("\\s+", " ") + " " +(keywordResultSet.getString("keyword.keyword").trim().replaceAll("\\s+", " ")),
-                                keywordResultSet.getString("keyword.content"), keywordResultSet.getString("keyword.attribution"));
-
-                        keywords.add(keyword);
+                    Keyword keyword = new Keyword(keywordResultSet.getString("keyword.id"),
+                            keywordResultSet.getString("category.name").trim().replaceAll("\\s+", " ") + " "
+                                    + (keywordResultSet.getString("keyword.keyword").trim().replaceAll("\\s+", " ")),
+                            keywordResultSet.getString("keyword.content"), keywordResultSet.getString("keyword.attribution"),
+                            keywordResultSet.getInt("keyword.isDeleted"), keywordResultSet.getString("keyword.createDate"),
+                            keywordResultSet.getString("keyword.updated"));                 
+                            updatedKeywords.add(keyword);
+                        if (updatedKeywords.size() >= 50) {
+                            processAndSendKeywords(updatedKeywords, menuName);
+                            System.out.println("Added " + updatedKeywords.size());
+                            updatedKeywords = new ArrayList<Keyword>();
+                            
+                        }
                 }
-                processing(keywords);
+                if (updatedKeywords.size() > 0) {
+                    processAndSendKeywords(updatedKeywords, menuName);
+                }
+                System.out.println("----Done migrating----");
             }
-        } catch (SQLException e) {
+        }
+        catch (SQLException e) {
             e.printStackTrace();
         }
     }
 
-    private void processing(List<Keyword> keywords) throws InvalidSObjectFault, InvalidFieldFault, InvalidIdFault, UnexpectedErrorFault, RemoteException {
-        int numberOfLevels = getNumberOfLevels(keywords);
-        System.out.println("We have "+numberOfLevels + " levels");
-        List<List<MenuItem>> levelsList = new ArrayList<List<MenuItem>>();
-        for (int level = 0; level < numberOfLevels; level++ ) {
-            levelsList.add(processLevel(keywords, level));
-        }
+    private void processAndSendKeywords(List<Keyword> keywords, String menuLabel) throws Exception {
         try {
-			saveToSalesforce(levelsList);
-		} catch (IOException e) {
-			e.printStackTrace();
-		} catch (ServiceException e) {
-			e.printStackTrace();
-		}
-        System.out.println("SAVING COMPLETE!!!!");
-    }
-
-    private void saveToSalesforce(List<List<MenuItem>> levelsList) throws IOException, ServiceException {
-        //finally save!!!
-        List<Menu_Item__c> menuItemListToSave = new ArrayList<Menu_Item__c>();
-        HashMap<MenuItem, String> parentIdHashMap = new HashMap<MenuItem, String>();
-
-        for (int count = 0; count < levelsList.size(); count++) {
-            System.out.println("level " + count);
-            List<MenuItem> itemList = levelsList.get(count);
-            menuItemListToSave.clear();
-            System.out.println("level " + count + " has " + itemList.size() + " items");
-            for (MenuItem menuItemKey : itemList) {
-                  System.out.println("map contents " + parentIdHashMap);
-                Menu_Item__c menuItem = new Menu_Item__c();
-                menuItem.setLabel__c(menuItemKey.getMenuItem());
-                menuItem.setLast_Modified_Date__c(menuItemKey.getLastModifiedDate());
-                System.out.println("PARENT = " + parentIdHashMap.get(menuItemKey.getParentMenuItem()));
-                menuItem.setParent_Item__c(parentIdHashMap.get(menuItemKey.getParentMenuItem()));
-                if (null != menuItemKey.getContent()) {
-                    menuItem.setContent__c(menuItemKey.getContent());
-                    menuItem.setAttribution__c(menuItemKey.getAttribution());
-                }
-               menuItem.setMenu__c(menu);
-               menuItemListToSave.add(menuItem);
-            }
-                int numberOfBatches = 1;
-
-                List<Menu_Item__c> listA = new ArrayList<Menu_Item__c>();
-                for (int x = 0; x < menuItemListToSave.size(); numberOfBatches++) {
-                    for (int y = 0; y < 200 && x < menuItemListToSave.size(); x++) {
-                        listA.add(menuItemListToSave.get(y+ ((numberOfBatches - 1) * 200)));
-                        y++;
-                    }
-                    //do the save to SF
-                    SaveResult[] saveResult = SalesforceKeywordProxy.getBinding().create(listA.toArray(new Menu_Item__c[0]));
-                    System.out.println("we have "+saveResult.length + " Ids from SF");
-                    System.out.println("save result array follows");
-                    printArray(saveResult);
-                    for (int index = 0; index < saveResult.length; index++) {
-                        parentIdHashMap.put((MenuItem)itemList.get(index + (200 * (numberOfBatches - 1))), saveResult[index].getId());
-                        if (!saveResult[index].isSuccess()) {
-                            com.sforce.soap.enterprise.Error[] errors = saveResult[index].getErrors();
-                            printErrors(errors);
-                        }
-                    }
-                    System.out.println("hashmap contents after level "+ count);
-                    System.out.println(parentIdHashMap);
-                    listA.clear();
-                }
+            List<MenuItemAdapter> adapters = generateMenuItemAdapters(keywords);
+            System.out.println("Fininshed processing adapters, sending keywords ...");
+            salesforceKeywordProxy.sendKeywordsToSalesforce(adapters, menuLabel);
+            System.out.println("----------------Finished processing -------------");
         }
-        saveImages(parentIdHashMap);
-    }
-
-    private void printErrors(Error[] errors) {
-        for (int i = 0; i < errors.length; i++) {
-            System.out .println(errors[i].getMessage());
+        catch (Exception e) {
+            e.printStackTrace();
         }
-	}
-
-	private List<MenuItem> processLevel(List<Keyword> keywords, int level) {
-		 MenuItem menuItem = null;
-	        List<MenuItem> singleLevelMenuItemList = new ArrayList<MenuItem>(); 
-	        for (int i = 0; i < keywords.size(); i++) {
-	            String [] tokens = keywords.get(i).getLabel().trim().replaceAll("\\s+", " ").split(" ");
-	            tokens = removeUnderscore(tokens);
-	            if (level < tokens.length) {
-	                menuItem = new MenuItem();
-	                menuItem.setTieBreaker(doTieBreak(tokens, level));
-	                menuItem.setMenuItem(tokens[level]);
-
-	                if (level == tokens.length - 1 && level != 0 && null != keywords.get(i).getContent()) {
-	                    menuItem.setContent(keywords.get(i).getContent());
-	                    menuItem.setParentMenuItem(new MenuItem(tokens[level - 1], tokens[level-2], "", doTieBreak(tokens, level-1)));
-	                    menuItem.setAttribution(keywords.get(i).getAttribution());
-	                }
-	                else if (level != 0 && level != tokens.length - 1){
-	                    if (level == 1) {
-	                        menuItem.setParentMenuItem(new MenuItem(tokens[level - 1], "", "", doTieBreak(tokens, level -1)));
-	                    }
-	                    else {
-	                        menuItem.setParentMenuItem(new MenuItem(tokens[level - 1], tokens[level-2], "", doTieBreak(tokens, level -1)));
-	                    }
-	                }
-	                if (level == 0 && singleLevelMenuItemList.size() == 0) {
-	                    singleLevelMenuItemList.add(menuItem);
-	                }
-	                if (!singleLevelMenuItemList.contains(menuItem)) {
-	                    singleLevelMenuItemList.add(menuItem);
-	                }  
-	            }
-	        }
-	        return singleLevelMenuItemList;
     }
-
-    private int getNumberOfLevels(List<Keyword> keywords) {
-        int levels = 0;
-        for (int i = 0; i < keywords.size(); i++) {
-            int level = keywords.get(i).getLabel().split(" ").length;
-            if (level > levels) {
-                levels = level;
+       
+    /*
+     * Checks if the keyword already exists in list of adapters
+     */
+    private boolean existsInAdaptersList(List<MenuItemAdapter> adapters, String path) {
+        for (MenuItemAdapter adapter : adapters) {
+            if (adapter.getMenuPath().contentEquals(path)) {
+                return true;
             }
         }
-        return levels;
+        return false;
     }
-
-    private String doTieBreak(String[] tokens, int level) {
-        String tieBreaker = "";
-        for (int x = 0; x < tokens.length && x < level + 1; x++) {
+    
+    private String buildAdapterMenuPath(String[] tokens, int level) {
+        String path = "";
+        for (int x = 0; x < tokens.length && x <= level; x++) {
             String y = tokens[x];
-            tieBreaker = tieBreaker + " " + y;
+            path = path + " " + y;
         }
-        return tieBreaker;
+        return path;        
     }
+
+    private List<MenuItemAdapter> generateMenuItemAdapters(List<Keyword> keywords) {
+        List<MenuItemAdapter> adapters = new ArrayList<MenuItemAdapter>();
+        for (int i = 0; i < keywords.size(); i++) {
+            
+            // split keywords breabcrumb to build menu paths for adapters
+            keywords.get(i).setBreadcrumb(keywords.get(i).getBreadcrumb().trim().replaceAll("\\s+", " "));
+            String[] rawTokens = keywords.get(i).getBreadcrumb().split(" ");
+            String[] tokens = removeUnderscore(keywords.get(i).getBreadcrumb().split(" "));
+            
+            // current and previous paths
+            String previousPath = "";
+            String currentPath = "";
+            // loop over all the tokens and build adapters
+            for (int j = 0; j < tokens.length; j++) {
+                previousPath = currentPath;
+                currentPath = buildAdapterMenuPath(rawTokens, j);
+                
+                // Make sure that their is no same adapter
+                if (!existsInAdaptersList(adapters, currentPath)) {
+                    MenuItemAdapter adapter = new MenuItemAdapter();
+                    adapter.setMenuPath(currentPath);
+                    //adapter.setId(generateHashForId(currentPath));
+                    adapter.setIsActive(keywords.get(i).isActive());
+                    adapter.setLabel(tokens[j]);
+                    adapter.setIsProcessed(false);
+                    
+                    System.out.println("Added adapter with label: " 
+                            + adapter.getLabel() + " and menu path: -> "
+                            + adapter.getMenuPath()
+                            + " previous menu path "
+                            + previousPath);
+                    // Fill in content, attribution et al if its the end point item
+                    if (j == tokens.length - 1) {
+                        adapter.setContent(keywords.get(i).getContent());
+                        adapter.setAttribution(keywords.get(i).getAttribution());
+                    }
+                    /*if (!previousPath.isEmpty()) {
+                        MenuItemAdapter previousAdapter = findPreviousAdapter(previousPath, adapters);
+                        if (previousAdapter != null) {
+                            adapter.setPreviousItemPath(previousAdapter.getMenuPath());
+                        }
+                    }*/
+                    adapter.setPreviousItemPath(previousPath);
+                    adapters.add(adapter);
+                }
+            }
+        }            
+         return adapters;
+    }
+    
+   /* private MenuItemAdapter findPreviousAdapter(String previousPath, List<MenuItemAdapter> adapters) {
+        for (MenuItemAdapter adapter : adapters) {
+            if (adapter.getMenuPath().equals(previousPath)) {
+                return adapter;
+            } 
+        }
+        return null;
+    } */
+     
+    
     private String[] removeUnderscore(String[] tokens) {
         if (tokens.length > 0) {
             for (int x = 0; x < tokens.length; x++) {
@@ -224,9 +206,9 @@ public class KeywordParser {
             keywordResultSet.last();
             size = keywordResultSet.getRow();
 
-            if(currentRow > 0) {
+            if (currentRow > 0) {
                 keywordResultSet.absolute(currentRow);
-            } 
+            }
             else {
                 keywordResultSet.beforeFirst();
             }
@@ -238,7 +220,7 @@ public class KeywordParser {
         return size;
     }
 
-    private String getKeywordsQuery() {
+    public String getKeywordsQuery(String lastUpdateDate) {
         StringBuilder commandText = new StringBuilder();
         commandText.append("SELECT ");
         commandText.append("keyword.id, ");
@@ -246,6 +228,8 @@ public class KeywordParser {
         commandText.append("keyword.weight, ");
         commandText.append("keyword.content, ");
         commandText.append("keyword.attribution, ");
+        commandText.append("keyword.isDeleted, ");
+        commandText.append("keyword.createDate, ");
         commandText.append("keyword.updated, ");
         commandText.append("category.name ");
         commandText.append("FROM ");
@@ -254,72 +238,19 @@ public class KeywordParser {
         commandText.append("category ");
         commandText.append("ON ");
         commandText.append("category.id = keyword.categoryId ");
-        commandText.append("AND ");
-        commandText.append("category.ckwsearch = 1 ");
-        commandText.append("AND ");
-        commandText.append("NOT keyword.isDeleted ");
-        commandText.append("AND category.name = 'MobileMoney_Directory'");
-        //commandText.append(" ORDER BY category.name ");
+
+        // commented this out since we want to pass wthose that have since been deactivated as well
+        // commandText.append("AND ");
+        // commandText.append("category.ckwsearch = 1 ");
+        commandText.append("WHERE ");
+        commandText.append("keyword.updated >= '");
+        commandText.append(lastUpdateDate);
+        commandText.append("' OR ");
+        commandText.append("category.updated >= '");
+        commandText.append(lastUpdateDate);
+        commandText.append("' ");
+        // commandText.append(" ORDER BY category.name ");
         System.out.println(commandText.toString());
         return commandText.toString();
     }
-
-    private void printArray(SaveResult[] array) {
-        String forFile = "";
-        for (int i =0; i < array.length; i ++) {
-            System.out.print(array[i].getId() + " ");
-            forFile = forFile + " " + array[i].getId() + " ";
-        }
-        System.out.println("................................................................................................");
-    }
-
-    private void checkForImages(MenuItem menuItem, HashMap<String, File> images, HashMap<MenuItem, String> parentIdHashMap) throws IOException, ServiceException {
-        for (String imageFile : images.keySet()) {
-    		if (imageFile.substring(0, imageFile.lastIndexOf(".")).equalsIgnoreCase(menuItem.getTieBreaker())) {
-    			Attachment image = new Attachment();
-				InputStream is = new FileInputStream(images.get(imageFile));
-				long length = images.get(imageFile).length();
-				// Create the byte array to hold the data
-			    byte[] bytes = new byte[(int)length];
-
-			    // Read in the bytes
-			    int offset = 0;
-			    int numRead = 0;
-			    while (offset < bytes.length
-			           && (numRead=is.read(bytes, offset, bytes.length-offset)) >= 0) {
-			        offset += numRead;
-			    }
-			    is.close();
-			    image.setBody(bytes);
-			    image.setParentId(parentIdHashMap.get(menuItem));
-			    image.setName(imageFile);
-			    SaveResult[] saveResult = SalesforceKeywordProxy.getBinding().create(new Attachment[] {image});
-                for (int index = 0; index < saveResult.length; index++) {
-                    if (!saveResult[index].isSuccess()) {
-                        com.sforce.soap.enterprise.Error[] errors = saveResult[index].getErrors();
-                        printErrors(errors);
-                    }
-                }
-            }
-        }
-    }
-
-    private void saveImages(HashMap<MenuItem, String> parentIdHashMap) throws IOException, ServiceException {
-        HashMap<String, File> images = getImages();
-        Set<MenuItem> menuItems = parentIdHashMap.keySet();
-        for (MenuItem menuItem : menuItems) {
-            checkForImages(menuItem, images, parentIdHashMap);
-        }
-    }
-
-	private HashMap<String, File> getImages() {
-		HashMap<String, File> images = new HashMap<String, File>();
-		File imagesDirectory = new File("C:\\search.images");
-		File[] children = imagesDirectory.listFiles();
-		System.out.println("we have " + children.length + " images");
-		for (File file : children) {
-			images.put(" "+file.getName().trim().replaceAll("_", " "), file);
-		}
-		return images;
-	}
 }
