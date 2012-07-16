@@ -6,7 +6,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
 
 /**
  * Class to deal with database interactions
@@ -16,14 +15,6 @@ import java.util.ArrayList;
 public class DatabaseHelpers {
 
     final static String JDBC_DRIVER = "com.mysql.jdbc.Driver";
-
-    final static String SUBMISSION_ANSWERS_TABLE = "answers";
-    final static String PARTNER_TABLE = "partner";
-    final static String DASHBOARD_TABLE = "dashboard";
-    final static String METRIC_PARAMETER_TABLE = "metricparameter";
-    final static String SURVEY_TABLE = "zebrasurvey";
-    final static String SUBMISSION_TABLE = "zebrasurveysubmissions";
-    final static String DASHBOARD_SURVEY_TABLE = "dashboardsurvey";
     private static Connection connection;
 
     /**

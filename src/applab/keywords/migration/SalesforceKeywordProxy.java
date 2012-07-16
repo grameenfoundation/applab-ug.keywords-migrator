@@ -1,29 +1,19 @@
 package applab.keywords.migration;
 
 import java.rmi.RemoteException;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import javax.xml.rpc.ServiceException;
 
 import applab.keywords.migration.Configuration;
-import applab.server.ApplabConfiguration;
-import applab.server.WebAppId;
 
 import com.sforce.soap.enterprise.LoginResult;
-import com.sforce.soap.enterprise.QueryResult;
-import com.sforce.soap.enterprise.SaveResult;
 import com.sforce.soap.enterprise.SessionHeader;
 import com.sforce.soap.enterprise.SforceServiceLocator;
 import com.sforce.soap.enterprise.SoapBindingStub;
 import com.sforce.soap.enterprise.fault.InvalidIdFault;
 import com.sforce.soap.enterprise.fault.LoginFault;
 import com.sforce.soap.enterprise.fault.UnexpectedErrorFault;
-import com.sforce.soap.enterprise.sobject.Menu_Item__c;
-import com.sforce.soap.schemas._class.FarmerCache.FarmerCacheBindingStub;
-import com.sforce.soap.schemas._class.FarmerCache.FarmerCacheServiceLocator;
 import com.sforce.soap.schemas._class.ImportBackendServerKeywords.ImportBackendServerKeywordsBindingStub;
 import com.sforce.soap.schemas._class.ImportBackendServerKeywords.ImportBackendServerKeywordsServiceLocator;
 import com.sforce.soap.schemas._class.ImportBackendServerKeywords.MenuItemAdapter;
@@ -36,6 +26,9 @@ public class SalesforceKeywordProxy {
         serviceStub = initBinding();
     }
 
+    /**
+     * Initializes binding to saleforce webservice
+     */
     private static ImportBackendServerKeywordsBindingStub initBinding() throws InvalidIdFault, UnexpectedErrorFault, LoginFault,
             RemoteException, ServiceException {
 
@@ -45,11 +38,11 @@ public class SalesforceKeywordProxy {
 
         // Use soap api to login and get session info
         SforceServiceLocator soapServiceLocator = new SforceServiceLocator();
-        soapServiceLocator.setSoapEndpointAddress(Configuration.getConfiguration("salesforceAddress", ""));
+        soapServiceLocator.setSoapEndpointAddress(Configuration.getConfig().getConfiguration("salesforceAddress", ""));
         SoapBindingStub binding = (SoapBindingStub)soapServiceLocator.getSoap();
-        LoginResult loginResult = binding.login(Configuration.getConfiguration("salesforceUsername", ""),
-                Configuration.getConfiguration("salesforcePassword", "")
-                        + Configuration.getConfiguration("salesforceToken", ""));
+        LoginResult loginResult = binding.login(Configuration.getConfig().getConfiguration("salesforceUsername", ""),
+                Configuration.getConfig().getConfiguration("salesforcePassword", "")
+                        + Configuration.getConfig().getConfiguration("salesforceToken", ""));
         SessionHeader sessionHeader = new SessionHeader(loginResult.getSessionId());
 
         // Share the session info with our webservice

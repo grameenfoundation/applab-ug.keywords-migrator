@@ -24,9 +24,7 @@ public class Configuration {
 
     // Default path to the configuration file
     //private static final String defaultFilePath = "H:/helios git/KeywordMigration/src/conf/configuration.xml";
-    private static final String defaultFilePath = "src/conf/configuration.xml";
-
-
+    
     // Allows a different filepath to be used for a custom config
     private String filePath;
 
@@ -35,18 +33,21 @@ public class Configuration {
     /**
      * Empty constructor as the work is done in the init proc
      */
-    public Configuration() {
+    private Configuration() {
+        filePath = "conf/configuration.xml";
     }
 
     /**
      * Create the singleton value and add default settings
      */
-    public static void init() {
-
-        Configuration config =  new Configuration();
-        config.configurationMap = new HashMap<String, String>();
-        config.filePath = defaultFilePath;
-        singletonValue = config;
+    public static Configuration getConfig() {
+        if (singletonValue == null) {
+            Configuration config =  new Configuration();
+            config.configurationMap = new HashMap<String, String>();
+            singletonValue = config;
+        }
+        return singletonValue;
+        
     }
 
     /**
@@ -62,7 +63,7 @@ public class Configuration {
      * Initiate the parsing of the config file.
      * Reads in file and normalises it
      */
-    public static void parseConfig() throws ParserConfigurationException, SAXException, IOException {
+    public void parseConfig() throws ParserConfigurationException, SAXException, IOException {
 
         File xmlFile = new File(singletonValue.filePath);
         DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance();
@@ -128,11 +129,7 @@ public class Configuration {
      *
      * @return - The config value matching the name or the default value if value is missing
      */
-    public static String getConfiguration(String name, String defaultValue) {
-
-        if (singletonValue == null) {
-            init();
-        }
+    public String getConfiguration(String name, String defaultValue) {
         if (singletonValue.configurationMap.containsKey(name)) {
             return singletonValue.configurationMap.get(name);
         }

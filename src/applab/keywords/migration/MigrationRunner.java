@@ -1,7 +1,6 @@
 package applab.keywords.migration;
 
 import java.io.IOException;
-import java.rmi.RemoteException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -14,7 +13,7 @@ public class MigrationRunner {
 		KeywordParser keywordParser = new KeywordParser();
 		DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         Calendar date = Calendar.getInstance();        
-        date.add(Calendar.HOUR_OF_DAY, -75);
+        date.add(Calendar.HOUR_OF_DAY, -25);
         String version = dateFormat.format(date.getTime());
 		try {
             keywordParser.updateSalesforceKeywords(version, "CKW Search");
@@ -23,5 +22,4 @@ public class MigrationRunner {
             e.printStackTrace();
         }
 	}
-
 }

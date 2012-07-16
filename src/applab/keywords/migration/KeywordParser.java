@@ -1,70 +1,40 @@
 package applab.keywords.migration;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.rmi.RemoteException;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
-import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Set;
-
-import javax.xml.rpc.ServiceException;
-import com.sforce.soap.enterprise.Error;
-import com.sforce.soap.enterprise.SaveResult;
-import com.sforce.soap.enterprise.fault.InvalidFieldFault;
-import com.sforce.soap.enterprise.fault.InvalidIdFault;
-import com.sforce.soap.enterprise.fault.InvalidSObjectFault;
-import com.sforce.soap.enterprise.fault.UnexpectedErrorFault;
-import com.sforce.soap.enterprise.sobject.Attachment;
-import com.sforce.soap.enterprise.sobject.Menu_Item__c;
 import com.sforce.soap.schemas._class.ImportBackendServerKeywords.MenuItemAdapter;
 
-//import applab.Keyword;
-
+/**
+ * Main class for loading and formaing keywords for migration Menu Item Adapters are built from keyowrds
+ * 
+ * @author GF
+ * 
+ */
 public class KeywordParser {
 
-    private String menu = "";
     SalesforceKeywordProxy salesforceKeywordProxy;
-    private HashMap<String, List<Keyword>> keywordsMap = new HashMap<String, List<Keyword>>();
-    
-    public void updateSalesforceKeywords(String lastUpdateDate, String menuName) throws Exception {
+    private Calendar calendar = Calendar.getInstance();
+
+    /**
+     * Entry method for updaet call. Orchestration of all activities happens here
+     * 
+     * @param lastUpdateDate
+     * @param menuName
+     */
+    public void updateSalesforceKeywords(String lastUpdateDate, String menuName) {
 
         try {
-            Configuration.init();
-            Configuration.parseConfig();
-        }
-        catch (Exception e) {
-            System.out.println("Failed to parse configuration");
-            e.printStackTrace();
-            System.exit(-1);
-        }
-        try {
-            DatabaseHelpers.createConnection(Configuration.getConfiguration("databaseURL", ""),
-                    Configuration.getConfiguration("databaseUsername", ""),
-                    Configuration.getConfiguration("databasePassword", "")
+            Configuration.getConfig().parseConfig();
+            DatabaseHelpers.createConnection(Configuration.getConfig().getConfiguration("databaseURL", ""),
+                    Configuration.getConfig().getConfiguration("databaseUsername", ""),
+                    Configuration.getConfig().getConfiguration("databasePassword", "")
                     );
-        }
-        catch (ClassNotFoundException e) {
-            e.printStackTrace();
-            System.exit(-1);
-        }
-        catch (SQLException e) {
-            e.printStackTrace();
-            System.exit(-1);
-        }
-        try {
             ResultSet keywordResultSet = DatabaseHelpers.executeSelectQuery(getKeywordsQuery(lastUpdateDate));
             int resultSetSize = getResultSetSize(keywordResultSet);
-            System.out.println(resultSetSize);
+            System.out.println(resultSetSize + " Keywords found");
             if (resultSetSize > 0) {
                 List<Keyword> updatedKeywords = new ArrayList<Keyword>();
                 salesforceKeywordProxy = new SalesforceKeywordProxy();
@@ -74,14 +44,14 @@ public class KeywordParser {
                                     + (keywordResultSet.getString("keyword.keyword").trim().replaceAll("\\s+", " ")),
                             keywordResultSet.getString("keyword.content"), keywordResultSet.getString("keyword.attribution"),
                             keywordResultSet.getInt("keyword.isDeleted"), keywordResultSet.getString("keyword.createDate"),
-                            keywordResultSet.getString("keyword.updated"));                 
-                            updatedKeywords.add(keyword);
-                        if (updatedKeywords.size() >= 50) {
-                            processAndSendKeywords(updatedKeywords, menuName);
-                            System.out.println("Added " + updatedKeywords.size());
-                            updatedKeywords = new ArrayList<Keyword>();
-                            
-                        }
+                            keywordResultSet.getString("keyword.updated"));
+                    updatedKeywords.add(keyword);
+                    if (updatedKeywords.size() >= 20) {
+                        processAndSendKeywords(updatedKeywords, menuName);
+                        System.out.println("Added " + updatedKeywords.size());
+                        updatedKeywords = new ArrayList<Keyword>();
+
+                    }
                 }
                 if (updatedKeywords.size() > 0) {
                     processAndSendKeywords(updatedKeywords, menuName);
@@ -89,23 +59,24 @@ public class KeywordParser {
                 System.out.println("----Done migrating----");
             }
         }
-        catch (SQLException e) {
+        catch (Exception e) {
             e.printStackTrace();
         }
     }
 
+    // Makes saleforce call to send menu item adapters for further processing in salesforce webservice
     private void processAndSendKeywords(List<Keyword> keywords, String menuLabel) throws Exception {
         try {
             List<MenuItemAdapter> adapters = generateMenuItemAdapters(keywords);
             System.out.println("Fininshed processing adapters, sending keywords ...");
             salesforceKeywordProxy.sendKeywordsToSalesforce(adapters, menuLabel);
-            System.out.println("----------------Finished processing -------------");
+            System.out.println("Finished processing....");
         }
         catch (Exception e) {
             e.printStackTrace();
         }
     }
-       
+
     /*
      * Checks if the keyword already exists in list of adapters
      */
@@ -117,25 +88,25 @@ public class KeywordParser {
         }
         return false;
     }
-    
+
     private String buildAdapterMenuPath(String[] tokens, int level) {
         String path = "";
         for (int x = 0; x < tokens.length && x <= level; x++) {
             String y = tokens[x];
             path = path + " " + y;
         }
-        return path;        
+        return path;
     }
 
     private List<MenuItemAdapter> generateMenuItemAdapters(List<Keyword> keywords) {
         List<MenuItemAdapter> adapters = new ArrayList<MenuItemAdapter>();
         for (int i = 0; i < keywords.size(); i++) {
-            
+
             // split keywords breabcrumb to build menu paths for adapters
             keywords.get(i).setBreadcrumb(keywords.get(i).getBreadcrumb().trim().replaceAll("\\s+", " "));
             String[] rawTokens = keywords.get(i).getBreadcrumb().split(" ");
             String[] tokens = removeUnderscore(keywords.get(i).getBreadcrumb().split(" "));
-            
+
             // current and previous paths
             String previousPath = "";
             String currentPath = "";
@@ -143,17 +114,18 @@ public class KeywordParser {
             for (int j = 0; j < tokens.length; j++) {
                 previousPath = currentPath;
                 currentPath = buildAdapterMenuPath(rawTokens, j);
-                
+
                 // Make sure that their is no same adapter
                 if (!existsInAdaptersList(adapters, currentPath)) {
                     MenuItemAdapter adapter = new MenuItemAdapter();
                     adapter.setMenuPath(currentPath);
-                    //adapter.setId(generateHashForId(currentPath));
+                    // adapter.setId(generateHashForId(currentPath));
                     adapter.setIsActive(keywords.get(i).isActive());
+                    adapter.setLastModifiedDate(calendar);
                     adapter.setLabel(tokens[j]);
                     adapter.setIsProcessed(false);
-                    
-                    System.out.println("Added adapter with label: " 
+
+                    System.out.println("Added adapter with label: "
                             + adapter.getLabel() + " and menu path: -> "
                             + adapter.getMenuPath()
                             + " previous menu path "
@@ -163,30 +135,14 @@ public class KeywordParser {
                         adapter.setContent(keywords.get(i).getContent());
                         adapter.setAttribution(keywords.get(i).getAttribution());
                     }
-                    /*if (!previousPath.isEmpty()) {
-                        MenuItemAdapter previousAdapter = findPreviousAdapter(previousPath, adapters);
-                        if (previousAdapter != null) {
-                            adapter.setPreviousItemPath(previousAdapter.getMenuPath());
-                        }
-                    }*/
                     adapter.setPreviousItemPath(previousPath);
                     adapters.add(adapter);
                 }
             }
-        }            
-         return adapters;
-    }
-    
-   /* private MenuItemAdapter findPreviousAdapter(String previousPath, List<MenuItemAdapter> adapters) {
-        for (MenuItemAdapter adapter : adapters) {
-            if (adapter.getMenuPath().equals(previousPath)) {
-                return adapter;
-            } 
         }
-        return null;
-    } */
-     
-    
+        return adapters;
+    }
+
     private String[] removeUnderscore(String[] tokens) {
         if (tokens.length > 0) {
             for (int x = 0; x < tokens.length; x++) {
@@ -238,18 +194,14 @@ public class KeywordParser {
         commandText.append("category ");
         commandText.append("ON ");
         commandText.append("category.id = keyword.categoryId ");
-
-        // commented this out since we want to pass wthose that have since been deactivated as well
-        // commandText.append("AND ");
-        // commandText.append("category.ckwsearch = 1 ");
         commandText.append("WHERE ");
+        commandText.append("category.ckwsearch = 1 AND (");
         commandText.append("keyword.updated >= '");
         commandText.append(lastUpdateDate);
         commandText.append("' OR ");
         commandText.append("category.updated >= '");
         commandText.append(lastUpdateDate);
-        commandText.append("' ");
-        // commandText.append(" ORDER BY category.name ");
+        commandText.append("' )");
         System.out.println(commandText.toString());
         return commandText.toString();
     }
