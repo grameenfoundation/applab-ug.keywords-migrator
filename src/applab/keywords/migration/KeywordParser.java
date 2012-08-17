@@ -19,7 +19,7 @@ public class KeywordParser {
     private Calendar calendar = Calendar.getInstance();
 
     /**
-     * Entry method for updaet call. Orchestration of all activities happens here
+     * Entry method for update call. Orchestration of all activities happens here
      * 
      * @param lastUpdateDate
      * @param menuName
@@ -69,7 +69,7 @@ public class KeywordParser {
         try {
             List<MenuItemAdapter> adapters = generateMenuItemAdapters(keywords);
             System.out.println("Fininshed processing adapters, sending keywords ...");
-            salesforceKeywordProxy.sendKeywordsToSalesforce(adapters, menuLabel);
+            // salesforceKeywordProxy.sendKeywordsToSalesforce(adapters, menuLabel);
             System.out.println("Finished processing....");
         }
         catch (Exception e) {
@@ -115,11 +115,10 @@ public class KeywordParser {
                 previousPath = currentPath;
                 currentPath = buildAdapterMenuPath(rawTokens, j);
 
-                // Make sure that their is no same adapter
+                // Make sure that there is no 'similar' adapter already loaded
                 if (!existsInAdaptersList(adapters, currentPath)) {
                     MenuItemAdapter adapter = new MenuItemAdapter();
                     adapter.setMenuPath(currentPath);
-                    // adapter.setId(generateHashForId(currentPath));
                     adapter.setIsActive(keywords.get(i).isActive());
                     adapter.setLastModifiedDate(calendar);
                     adapter.setLabel(tokens[j]);
@@ -172,11 +171,15 @@ public class KeywordParser {
         catch (SQLException e) {
             return size;
         }
-
         return size;
     }
 
     public String getKeywordsQuery(String lastUpdateDate) {
+        return getKeywordsQuery(lastUpdateDate, commaSeparateAndQuoteList(Configuration.getConfig().getConfiguration("includedCategories")),
+                Configuration.getConfig().getConfiguration("excludedKeywords"));
+    }
+
+    private String getKeywordsQuery(String lastUpdateDate, String includedCategories, List<String> excludedKeywords) {
         StringBuilder commandText = new StringBuilder();
         commandText.append("SELECT ");
         commandText.append("keyword.id, ");
@@ -195,6 +198,8 @@ public class KeywordParser {
         commandText.append("ON ");
         commandText.append("category.id = keyword.categoryId ");
         commandText.append("WHERE ");
+        commandText.append("keyword.isDeleted = 0 AND ");
+        commandText.append("keyword.keyword NOT LIKE '%null%' AND ");
         commandText.append("category.ckwsearch = 1 AND (");
         commandText.append("keyword.updated >= '");
         commandText.append(lastUpdateDate);
@@ -202,7 +207,40 @@ public class KeywordParser {
         commandText.append("category.updated >= '");
         commandText.append(lastUpdateDate);
         commandText.append("' )");
+        
+        if (!includedCategories.equalsIgnoreCase("")) {
+            commandText.append(" AND category.name IN ( ");
+            commandText.append(includedCategories);
+            commandText.append(")");
+        }
+        
+        if (excludedKeywords.size() > 0) {
+            for (String excludedKeyword : excludedKeywords) {
+                commandText.append(" AND keyword.keyword NOT LIKE '%");
+                commandText.append(excludedKeyword);
+                commandText.append("%'");
+            }
+        }
+
         System.out.println(commandText.toString());
         return commandText.toString();
+    }
+
+    /**
+     * Generates a comma separated String from list of Strings
+     * 
+     * @param - list of string items
+     * @return - comma separated string
+     */
+    private String commaSeparateAndQuoteList(List<String> list) {
+        String value = "";
+        for (int index = 0; index < list.size(); index++) {
+            if (0 == index) {
+                value = "'" + list.get(0) + "'";
+                continue;
+            }
+            value = value + ",'" + list.get(index) + "'";
+        }
+        return value;
     }
 }
